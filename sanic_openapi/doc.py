@@ -12,48 +12,34 @@ class Field:
     def serialize(self):
         output = {}
         if self.name:
-            output['name'] = self.name
+            output["name"] = self.name
         if self.description:
-            output['description'] = self.description
+            output["description"] = self.description
         if self.required is not None:
-            output['required'] = self.required
+            output["required"] = self.required
         if self.choices is not None:
-            output['enum'] = self.choices
+            output["enum"] = self.choices
         return output
 
 
 class Integer(Field):
     def serialize(self):
-        return {
-            "type": "integer",
-            "format": "int64",
-            **super().serialize()
-        }
+        return {"type": "integer", "format": "int64", **super().serialize()}
 
 
 class Float(Field):
     def serialize(self):
-        return {
-            "type": "number",
-            "format": "double",
-            **super().serialize()
-        }
+        return {"type": "number", "format": "double", **super().serialize()}
 
 
 class String(Field):
     def serialize(self):
-        return {
-            "type": "string",
-            **super().serialize()
-        }
+        return {"type": "string", **super().serialize()}
 
 
 class Boolean(Field):
     def serialize(self):
-        return {
-            "type": "boolean",
-            **super().serialize()
-        }
+        return {"type": "boolean", **super().serialize()}
 
 
 class Tuple(Field):
@@ -62,20 +48,12 @@ class Tuple(Field):
 
 class Date(Field):
     def serialize(self):
-        return {
-            "type": "string",
-            "format": "date",
-            **super().serialize()
-        }
+        return {"type": "string", "format": "date", **super().serialize()}
 
 
 class DateTime(Field):
     def serialize(self):
-        return {
-            "type": "string",
-            "format": "date-time",
-            **super().serialize()
-        }
+        return {"type": "string", "format": "date-time", **super().serialize()}
 
 
 class Dictionary(Field):
@@ -86,8 +64,10 @@ class Dictionary(Field):
     def serialize(self):
         return {
             "type": "object",
-            "properties": {key: serialize_schema(schema) for key, schema in self.fields.items()},
-            **super().serialize()
+            "properties": {
+                key: serialize_schema(schema) for key, schema in self.fields.items()
+            },
+            **super().serialize(),
         }
 
 
@@ -103,10 +83,7 @@ class List(Field):
             items = Tuple(self.items).serialize()
         elif self.items:
             items = serialize_schema(self.items[0])
-        return {
-            "type": "array",
-            "items": items
-        }
+        return {"type": "array", "items": items}
 
 
 definitions = {}
@@ -130,15 +107,15 @@ class Object(Field):
                 key: serialize_schema(schema)
                 for key, schema in self.cls.__dict__.items()
                 if not key.startswith("_")
-                },
-            **super().serialize()
+            },
+            **super().serialize(),
         }
 
     def serialize(self):
         return {
             "type": "object",
             "$ref": "#/definitions/{}".format(self.object_name),
-            **super().serialize()
+            **super().serialize(),
         }
 
 
@@ -200,10 +177,12 @@ class RouteSpec(object):
     blueprint = None
     tags = None
     exclude = None
+    responses = None
 
     def __init__(self):
         self.tags = []
         self.consumes = []
+        self.responses = {}
         super().__init__()
 
 
@@ -221,9 +200,15 @@ class RouteField(object):
 route_specs = defaultdict(RouteSpec)
 
 
-def route(summary=None, description=None, consumes=None, produces=None,
-          consumes_content_type=None, produces_content_type=None,
-          exclude=None):
+def route(
+    summary=None,
+    description=None,
+    consumes=None,
+    produces=None,
+    consumes_content_type=None,
+    produces_content_type=None,
+    exclude=None,
+):
     def inner(func):
         route_spec = route_specs[func]
 
@@ -243,6 +228,7 @@ def route(summary=None, description=None, consumes=None, produces=None,
             route_spec.exclude = exclude
 
         return func
+
     return inner
 
 
@@ -250,6 +236,7 @@ def exclude(boolean):
     def inner(func):
         route_specs[func].exclude = boolean
         return func
+
     return inner
 
 
@@ -257,6 +244,7 @@ def summary(text):
     def inner(func):
         route_specs[func].summary = text
         return func
+
     return inner
 
 
@@ -264,10 +252,11 @@ def description(text):
     def inner(func):
         route_specs[func].description = text
         return func
+
     return inner
 
 
-def consumes(*args, content_type=None, location='query', required=False):
+def consumes(*args, content_type=None, location="query", required=False):
     def inner(func):
         if args:
             for arg in args:
@@ -275,6 +264,7 @@ def consumes(*args, content_type=None, location='query', required=False):
                 route_specs[func].consumes.append(field)
                 route_specs[func].consumes_content_type = content_type
         return func
+
     return inner
 
 
@@ -285,6 +275,7 @@ def produces(*args, content_type=None):
             route_specs[func].produces = field
             route_specs[func].produces_content_type = content_type
         return func
+
     return inner
 
 
@@ -292,4 +283,16 @@ def tag(name):
     def inner(func):
         route_specs[func].tags.append(name)
         return func
+
+    return inner
+
+
+def response(code, description=None, examples=None):
+    def inner(func):
+        route_specs[func].responses[code] = {
+            "description": description,
+            "example": examples,
+        }
+        return func
+
     return inner
