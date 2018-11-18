@@ -178,11 +178,13 @@ class RouteSpec(object):
     tags = None
     exclude = None
     responses = None
+    security = None
 
     def __init__(self):
         self.tags = []
         self.consumes = []
         self.responses = {}
+        self.security = []
         super().__init__()
 
 
@@ -282,6 +284,16 @@ def produces(*args, content_type=None):
 def tag(name):
     def inner(func):
         route_specs[func].tags.append(name)
+        return func
+
+    return inner
+
+
+def security(*args):
+    def inner(func):
+        if args:
+            for arg in args:
+                route_specs[func].security.append(arg)
         return func
 
     return inner

@@ -123,6 +123,7 @@ def build_spec(app, loop):
                     del route_param["$ref"]
 
                 route_parameters.append(route_param)
+
             if "200" not in route_spec.responses:
                 route_spec.responses["200"] = {
                     "description": "successful operation",
@@ -142,6 +143,7 @@ def build_spec(app, loop):
                     "tags": route_spec.tags or None,
                     "parameters": route_parameters,
                     "responses": route_spec.responses,
+                    "security": route_spec.security,
                 }
             )
 
