@@ -210,6 +210,8 @@ def route(
     consumes_content_type=None,
     produces_content_type=None,
     exclude=None,
+    responses=None,
+    security=None,
 ):
     def inner(func):
         route_spec = route_specs[func]
@@ -228,6 +230,10 @@ def route(
             route_spec.produces_content_type = produces_content_type
         if exclude is not None:
             route_spec.exclude = exclude
+        if responses is not None:
+            route_spec.responses = responses
+        if security is not None:
+            route_spec.security = security
 
         return func
 
