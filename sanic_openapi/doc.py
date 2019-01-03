@@ -79,6 +79,7 @@ class List(Field):
         super().__init__(*args, **kwargs)
 
     def serialize(self):
+        items = []
         if len(self.items) > 1:
             items = Tuple(self.items).serialize()
         elif self.items:
