@@ -3,11 +3,14 @@ from datetime import date, datetime
 
 
 class Field:
-    def __init__(self, description=None, required=None, name=None, choices=None):
+    def __init__(
+        self, description=None, required=None, name=None, choices=None, example=None
+    ):
         self.name = name
         self.description = description
         self.required = required
         self.choices = choices
+        self.example = example
 
     def serialize(self):
         output = {}
@@ -19,6 +22,8 @@ class Field:
             output["required"] = self.required
         if self.choices is not None:
             output["enum"] = self.choices
+        if self.example is not None:
+            output["example"] = self.example
         return output
 
 
@@ -79,15 +84,18 @@ class List(Field):
         super().__init__(*args, **kwargs)
 
     def serialize(self):
-        items = []
         if len(self.items) > 1:
             items = Tuple(self.items).serialize()
         elif self.items:
             items = serialize_schema(self.items[0])
+        else:
+            items = []
         return {"type": "array", "items": items}
 
 
 definitions = {}
+# TODO
+security_definitions = {}
 
 
 class Object(Field):
@@ -98,12 +106,27 @@ class Object(Field):
         self.object_name = object_name or cls.__name__
 
         if self.cls not in definitions:
-            definitions[self.cls] = (self, self.definition)
+            definition = self.definition
+
+            if "properties" in definition and isinstance(
+                definition["properties"], dict
+            ):
+                # remove empty dict
+                definition["properties"] = {
+                    k: v for k, v in definition["properties"].items() if v
+                }
+
+            definitions[self.cls] = (self, definition)
 
     @property
     def definition(self):
         return {
             "type": "object",
+            "required": [
+                attr
+                for attr, schema in self.cls.__dict__.items()
+                if hasattr(schema, "required") and schema.required
+            ],
             "properties": {
                 key: serialize_schema(schema)
                 for key, schema in self.cls.__dict__.items()
@@ -201,44 +224,6 @@ class RouteField(object):
 
 
 route_specs = defaultdict(RouteSpec)
-
-
-def route(
-    summary=None,
-    description=None,
-    consumes=None,
-    produces=None,
-    consumes_content_type=None,
-    produces_content_type=None,
-    exclude=None,
-    responses=None,
-    security=None,
-):
-    def inner(func):
-        route_spec = route_specs[func]
-
-        if summary is not None:
-            route_spec.summary = summary
-        if description is not None:
-            route_spec.description = description
-        if consumes is not None:
-            route_spec.consumes = consumes
-        if produces is not None:
-            route_spec.produces = produces
-        if consumes_content_type is not None:
-            route_spec.consumes_content_type = consumes_content_type
-        if produces_content_type is not None:
-            route_spec.produces_content_type = produces_content_type
-        if exclude is not None:
-            route_spec.exclude = exclude
-        if responses is not None:
-            route_spec.responses = responses
-        if security is not None:
-            route_spec.security = security
-
-        return func
-
-    return inner
 
 
 def exclude(boolean):

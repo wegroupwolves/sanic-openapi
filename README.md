@@ -1,5 +1,73 @@
 # Sanic OpenAPI
 
+# TODO
+
+## FIX response dict, add model instead of just example
+
+this is how it is now:
+
+```
+"400": {
+    "description": "error",
+    "example": {
+        "domain": {
+            "choices": null,
+            "description": "email address where the mail is send to",
+            "example": "sebastiaan@wegroup.be",
+            "name": "domain",
+            "required": true
+        }
+    }
+},
+```
+
+and should be:
+
+
+```
+"401": {
+    "description": "Unauthorized",
+    "schema": {
+        "$ref": "#/definitions/Error"
+    }
+},
+
+"Error": {
+    "description": "The Error contains error relevant information.",
+    "type": "object",
+    "title": "Error Model",
+    "required": [
+        "error",
+        "errorCode",
+        "errorDescription"
+    ],
+    "properties": {
+        "error": {
+            "description": "The general error message",
+            "type": "string",
+            "x-go-name": "Error",
+            "example": "Unauthorized"
+        },
+        "errorCode": {
+            "description": "The http error code.",
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "ErrorCode",
+            "example": 401
+        },
+        "errorDescription": {
+            "description": "The http error code.",
+            "type": "string",
+            "x-go-name": "ErrorDescription",
+            "example": "you need to provide a valid access token or user credentials to access this api"
+        }
+    },
+    "x-go-package": "github.com/gotify/server/model"
+},
+```
+
+
+
 [![Build Status](https://travis-ci.org/huge-success/sanic-openapi.svg?branch=master)](https://travis-ci.org/huge-success/sanic-openapi)
 [![PyPI](https://img.shields.io/pypi/v/sanic-openapi.svg)](https://pypi.python.org/pypi/sanic-openapi/)
 [![PyPI](https://img.shields.io/pypi/pyversions/sanic-openapi.svg)](https://pypi.python.org/pypi/sanic-openapi/)

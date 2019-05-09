@@ -5,7 +5,13 @@ from sanic.blueprints import Blueprint
 from sanic.response import json
 from sanic.views import CompositionView
 
-from .doc import route_specs, RouteSpec, serialize_schema, definitions
+from .doc import (
+    route_specs,
+    RouteSpec,
+    serialize_schema,
+    definitions,
+    security_definitions,
+)
 
 
 blueprint = Blueprint("openapi", url_prefix="openapi")
@@ -80,10 +86,10 @@ def build_spec(app, loop):
                 continue
 
             consumes_content_types = route_spec.consumes_content_type or getattr(
-                app.config, "API_CONSUMES_CONTENT_TYPES", ["application/json"]
+                app.config, "API_CONSUMES_CONTENT_TYPES", ["application/vnd.api+json"]
             )
             produces_content_types = route_spec.produces_content_type or getattr(
-                app.config, "API_PRODUCES_CONTENT_TYPES", ["application/json"]
+                app.config, "API_PRODUCES_CONTENT_TYPES", ["application/vnd.api+json"]
             )
 
             # Parameters - Path & Query String
@@ -166,6 +172,13 @@ def build_spec(app, loop):
     _spec["definitions"] = {
         obj.object_name: definition for cls, (obj, definition) in definitions.items()
     }
+    _spec["securityDefinitions"] = {
+        "appTokenHeader": {"type": "apiKey", "name": "WG-API-TOKEN", "in": "header"},
+        "basicAuth": {"type": "basic"},
+    }
+    # _spec["securityDefinitions"] = {
+    #     obj.object_name: definition for cls, (obj, definition) in security_definitions.items()
+    # }
 
     # --------------------------------------------------------------- #
     # Tags
