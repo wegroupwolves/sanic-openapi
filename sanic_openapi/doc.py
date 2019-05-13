@@ -143,14 +143,16 @@ class Object(Field):
 
                 yaml_start = full_doc.find("---")
                 swag = yaml.safe_load(full_doc[yaml_start if yaml_start >= 0 else 0 :])
-                if "required" in swag and swag["required"]:
+                if swag and "required" in swag and swag["required"]:
                     definition["required"] = swag["required"]
-                if "properties" in swag and swag["properties"]:
+                if swag and "properties" in swag and swag["properties"]:
                     definition["properties"] = swag["properties"]
 
                 if (
                     hasattr(self.cls, "__dataclass_fields__")
                     and self.cls.__dataclass_fields__
+                    and swag
+                    and "properties" in swag
                 ):
 
                     properties_class = set(list(self.cls.__dataclass_fields__.keys()))
