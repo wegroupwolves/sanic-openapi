@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import date, datetime
+import yaml
 
 
 class Field:
@@ -115,6 +116,54 @@ class Object(Field):
                 definition["properties"] = {
                     k: v for k, v in definition["properties"].items() if v
                 }
+            if hasattr(self.cls, "__doc__") and self.cls.__doc__:
+                # here we yaml parse
+                # @dataclass(config=GlobalConfig)
+                # class A(DataClass):
+                #     """
+                #     some doc
+                #     ---
+                #     required:
+                #     - name
+                #     - a
+                #     properties:
+                #         attr1:
+                #             description: Cat's name
+                #             type: string
+                #             example: Sylvester
+                #     """
+                #
+                #     attr1: str
+                #
+                #     def aa(self):
+                #         pass
+
+                definition = self.definition
+                full_doc = self.cls.__doc__
+
+                yaml_start = full_doc.find("---")
+                swag = yaml.safe_load(full_doc[yaml_start if yaml_start >= 0 else 0 :])
+                if "required" in swag and swag["required"]:
+                    definition["required"] = swag["required"]
+                if "properties" in swag and swag["properties"]:
+                    definition["properties"] = swag["properties"]
+
+                if (
+                    hasattr(self.cls, "__dataclass_fields__")
+                    and self.cls.__dataclass_fields__
+                ):
+
+                    properties_class = set(list(self.cls.__dataclass_fields__.keys()))
+                    properties_swag = set(list(definition["properties"].keys()))
+
+                    if properties_swag - properties_class:
+                        raise ValueError(
+                            f"There are more properties defined in the __doc__ of {self.cls} then attributes it has: {properties_swag - properties_class}"
+                        )
+                    if properties_class - properties_swag:
+                        raise ValueError(
+                            f"There are more properties defined in the attributes of {self.cls} then in the __doc__ it has: {properties_class - properties_swag}"
+                        )
 
             definitions[self.cls] = (self, definition)
 
