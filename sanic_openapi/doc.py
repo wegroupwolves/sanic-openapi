@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date, datetime
 import yaml
+from typing import List as ListTyping
 
 
 class Field:
@@ -99,6 +100,70 @@ definitions = {}
 security_definitions = {}
 
 
+class ParseClass:
+    def __init__(self, cls, obj=None, name=None):
+        self.cls = cls
+        self.obj = obj
+        self.name = name
+
+
+def parse_yaml(classes: ListTyping[ParseClass]):
+    # classes = (class, obj, name)
+    for cls in classes:
+        if cls.cls not in definitions:
+            definition = {"type": "object", "required": [], "properties": {}}
+
+            full_doc = cls.cls.__doc__
+
+            yaml_start = full_doc.find("---")
+            swag = yaml.safe_load(full_doc[yaml_start if yaml_start >= 0 else 0 :])
+
+            if swag and "required" in swag and swag["required"]:
+                definition["required"] = swag["required"]
+            if swag and "properties" in swag and swag["properties"]:
+                definition["properties"] = swag["properties"]
+
+            if (
+                hasattr(cls.cls, "__dataclass_fields__")
+                and cls.cls.__dataclass_fields__
+                and swag
+                and "properties" in swag
+            ):
+
+                properties_class = set(list(cls.cls.__dataclass_fields__.keys()))
+                properties_swag = set(list(definition["properties"].keys()))
+
+                if properties_swag - properties_class:
+                    raise ValueError(
+                        f"There are more properties defined in the __doc__ of {cls.cls} then attributes it has: {properties_swag - properties_class}"
+                    )
+                if properties_class - properties_swag:
+                    raise ValueError(
+                        f"There are more properties defined in the attributes of {cls.cls} then in the __doc__ it has: {properties_class - properties_swag}"
+                    )
+
+                # check if reference in swag yaml and append them to definitions
+                # then do a recursive function that parses yaml
+                to_parse = []
+                for k, v in swag["properties"].items():
+                    if "ref" in v:
+                        for j, w in cls.cls.__dataclass_fields__.items():
+                            if v["ref"] == w.type.__name__:
+                                parse = ParseClass(w.type, name=w.type.__name__)
+                                to_parse.append(parse)
+                                # to_inspect()
+                        v["$ref"] = f"#/definitions/{v['ref']}"
+                        del v["ref"]
+                parse_yaml(to_parse)
+
+        if cls.obj:
+            definitions[cls.cls] = (cls.obj, definition)
+        elif cls.name:
+            definitions[cls.cls] = (cls.name, definition)
+        else:
+            raise Exception("no obj nor name defined")
+
+
 class Object(Field):
     def __init__(self, cls, *args, object_name=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -109,14 +174,17 @@ class Object(Field):
         if self.cls not in definitions:
             definition = self.definition
 
-            if "properties" in definition and isinstance(
+            if hasattr(self.cls, "__doc__") and self.cls.__doc__:
+                cls = ParseClass(cls=cls, obj=self)
+                parse_yaml([cls])
+            elif "properties" in definition and isinstance(
                 definition["properties"], dict
             ):
                 # remove empty dict
                 definition["properties"] = {
                     k: v for k, v in definition["properties"].items() if v
                 }
-            if hasattr(self.cls, "__doc__") and self.cls.__doc__:
+                definitions[self.cls] = (self, definition)
                 # here we yaml parse
                 # @dataclass(config=GlobalConfig)
                 # class A(DataClass):
@@ -138,36 +206,52 @@ class Object(Field):
                 #     def aa(self):
                 #         pass
 
-                definition = self.definition
-                full_doc = self.cls.__doc__
-
-                yaml_start = full_doc.find("---")
-                swag = yaml.safe_load(full_doc[yaml_start if yaml_start >= 0 else 0 :])
-                if swag and "required" in swag and swag["required"]:
-                    definition["required"] = swag["required"]
-                if swag and "properties" in swag and swag["properties"]:
-                    definition["properties"] = swag["properties"]
-
-                if (
-                    hasattr(self.cls, "__dataclass_fields__")
-                    and self.cls.__dataclass_fields__
-                    and swag
-                    and "properties" in swag
-                ):
-
-                    properties_class = set(list(self.cls.__dataclass_fields__.keys()))
-                    properties_swag = set(list(definition["properties"].keys()))
-
-                    if properties_swag - properties_class:
-                        raise ValueError(
-                            f"There are more properties defined in the __doc__ of {self.cls} then attributes it has: {properties_swag - properties_class}"
-                        )
-                    if properties_class - properties_swag:
-                        raise ValueError(
-                            f"There are more properties defined in the attributes of {self.cls} then in the __doc__ it has: {properties_class - properties_swag}"
-                        )
-
-            definitions[self.cls] = (self, definition)
+                # definition = self.definition
+                # full_doc = self.cls.__doc__
+                #
+                # yaml_start = full_doc.find("---")
+                # swag = yaml.safe_load(full_doc[yaml_start if yaml_start >= 0 else 0 :])
+                # if swag and "required" in swag and swag["required"]:
+                #     definition["required"] = swag["required"]
+                # if swag and "properties" in swag and swag["properties"]:
+                #     definition["properties"] = swag["properties"]
+                #
+                # if (
+                #     hasattr(self.cls, "__dataclass_fields__")
+                #     and self.cls.__dataclass_fields__
+                #     and swag
+                #     and "properties" in swag
+                # ):
+                #
+                #     properties_class = set(list(self.cls.__dataclass_fields__.keys()))
+                #     properties_swag = set(list(definition["properties"].keys()))
+                #
+                #     if properties_swag - properties_class:
+                #         raise ValueError(
+                #             f"There are more properties defined in the __doc__ of {self.cls} then attributes it has: {properties_swag - properties_class}"
+                #         )
+                #     if properties_class - properties_swag:
+                #         raise ValueError(
+                #             f"There are more properties defined in the attributes of {self.cls} then in the __doc__ it has: {properties_class - properties_swag}"
+                #         )
+                #
+                #     print("---" * 100)
+                #
+                #     # check if reference in swag yaml and append them to definitions
+                #     for k, v in swag["properties"].items():
+                #         if "ref" in v:
+                #             # print(v)
+                #             # # print(getattr(self.cls, v["ref"]))
+                #             # print(dir(self.cls))
+                #             # print(self.cls.__validate__)
+                #             # print(self.cls.__dataclass_fields__)
+                #             for j, w in self.cls.__dataclass_fields__.items():
+                #                 # print(dir(w.type))
+                #                 # print(w.type.__name__)
+                #                 if v["ref"] == w.type.__name__:
+                #                     print(w.type.__doc__)
+                #             v["$ref"] = f"#/definitions/{v['ref']}"
+                #             del v["ref"]
 
     @property
     def definition(self):

@@ -11,6 +11,7 @@ from .doc import (
     serialize_schema,
     definitions,
     security_definitions,
+    Object,
 )
 
 
@@ -169,9 +170,18 @@ def build_spec(app, loop):
     # Definitions
     # --------------------------------------------------------------- #
 
-    _spec["definitions"] = {
-        obj.object_name: definition for cls, (obj, definition) in definitions.items()
-    }
+    _spec["definitions"] = {}
+    for k, (obj, definition) in definitions.items():
+        if isinstance(obj, str):
+            _spec["definitions"][obj] = definition
+        else:
+            _spec["definitions"][obj.object_name] = definition
+    #     elif isinstance(k, str):
+    #         _spec["definitions"][k] = definition
+
+    # _spec["definitions"] = {
+    #     obj.object_name: definition for cls, (obj, definition) in definitions.items()
+    # }
     _spec["securityDefinitions"] = {
         "appTokenHeader": {"type": "apiKey", "name": "WG-API-TOKEN", "in": "header"},
         "basicAuth": {"type": "basic"},
