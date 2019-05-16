@@ -44,6 +44,7 @@ def build_spec(app, loop):
         },
     }
     _spec["schemes"] = getattr(app.config, "API_SCHEMES", ["http"])
+    _spec["basePath"] = getattr(app.config, "API_BASEPATH", "")
 
     # --------------------------------------------------------------- #
     # Blueprint Tags
