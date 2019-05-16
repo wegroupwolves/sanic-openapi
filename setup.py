@@ -28,6 +28,7 @@ setup(
     platforms='any',
     install_requires=[
         'sanic>=0.6.0',
+        'pyyaml'
     ],
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
