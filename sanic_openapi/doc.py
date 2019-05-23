@@ -1,7 +1,8 @@
 from collections import defaultdict
 from datetime import date, datetime
-import yaml
 from typing import List as ListTyping
+
+import yaml
 
 
 class Field:
@@ -114,6 +115,9 @@ def parse_yaml(classes: ListTyping[ParseClass]):
             definition = {"type": "object", "required": [], "properties": {}}
 
             full_doc = cls.cls.__doc__
+
+            if not full_doc:
+                return False
 
             yaml_start = full_doc.find("---")
             swag = yaml.safe_load(full_doc[yaml_start if yaml_start >= 0 else 0 :])
