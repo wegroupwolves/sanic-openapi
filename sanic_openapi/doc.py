@@ -150,22 +150,84 @@ def parse_yaml(classes: ListTyping[ParseClass]):
                 # then do a recursive function that parses yaml
                 to_parse = []
                 for k, v in swag["properties"].items():
-                    if "ref" in v:
+                    # ---------------------------------
+                    # class A():
+                    #   """
+                    #   properties:
+                    #       extras:
+                    #           items:
+                    #               type: string
+                    #               description: ...
+                    #               example: ...
+                    #   """
+                    #
+                    #   extras: List[ExtraObj]
+                    # ---------------------------------
+                    # if (
+                    #     v["type"] == "array"
+                    #     and "items" in v
+                    #     and v["items"]["type"] != "Object"
+                    # ):
+
+                    # ---------------------------------
+                    # class A():
+                    #   """
+                    #   properties:
+                    #       extras:
+                    #           type: array
+                    #           items:
+                    #               type: Object
+                    #               ref: ExtraObj
+                    #   """
+                    #
+                    #   extras: List[ExtraObj]
+                    # ---------------------------------
+                    if (
+                        "type" in v
+                        and v["type"] == "array"
+                        and "items" in v
+                        and "type" in v["items"]
+                        and v["items"]["type"] == "Object"
+                    ):
+                        if len(cls.cls.__dataclass_fields__[k].type.__args__) != 1:
+                            raise Exception(
+                                f"only 1 element in the list is supported! got {cls.cls.__dataclass_fields__[k].type.__args__}"
+                            )
+                        for class_ in cls.cls.__dataclass_fields__[k].type.__args__:
+                            parse = ParseClass(class_, name=class_.__name__)
+                            to_parse.append(parse)
+                        v["items"]["$ref"] = f"#/definitions/{v['items']['ref']}"
+                        del v["items"]["ref"]
+
+                    # ---------------------------------
+                    # class A():
+                    #   """
+                    #   properties:
+                    #       signed_at:
+                    #           type: Object
+                    #           ref: Date
+                    #   """
+                    #
+                    #   signed_at: Date
+                    # ---------------------------------
+                    if "ref" in v and "type" in v and v["type"] == "Object":
                         for j, w in cls.cls.__dataclass_fields__.items():
-                            if v["ref"] == w.type.__name__:
+                            if (
+                                hasattr(w.type, "__name__")
+                                and v["ref"] == w.type.__name__
+                            ):
                                 parse = ParseClass(w.type, name=w.type.__name__)
                                 to_parse.append(parse)
-                                # to_inspect()
                         v["$ref"] = f"#/definitions/{v['ref']}"
                         del v["ref"]
                 parse_yaml(to_parse)
 
-        if cls.obj:
-            definitions[cls.cls] = (cls.obj, definition)
-        elif cls.name:
-            definitions[cls.cls] = (cls.name, definition)
-        else:
-            raise Exception("no obj nor name defined")
+            if cls.obj:
+                definitions[cls.cls] = (cls.obj, definition)
+            elif cls.name:
+                definitions[cls.cls] = (cls.name, definition)
+            else:
+                raise Exception("no obj nor name defined")
 
 
 class Object(Field):
