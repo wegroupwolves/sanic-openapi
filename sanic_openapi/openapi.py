@@ -87,8 +87,6 @@ def build_spec(app, loop):
                 )
 
             for consumer in route_spec.consumes:
-                print("----------------")
-                print(consumer.field)
                 spec = serialize_schema(consumer.field)
                 if "properties" in spec:
                     for name, prop_spec in spec["properties"].items():
@@ -125,13 +123,10 @@ def build_spec(app, loop):
             for status_code, response in route_spec.responses.items():
                 if "example" in response and hasattr(response["example"], "__pydantic_model__"):
                     spec = serialize_schema(response["example"])
-                    print(spec)
-                    print(dir(response["example"]))
                     responses[status_code] = {
                         # "description": response.get("description"),
                         "schema": {"$ref": spec["$ref"]}
                     }
-                    print(responses)
                 else:
                     responses[status_code] = {}
 
