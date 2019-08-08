@@ -1,14 +1,14 @@
+import typing
 from collections import defaultdict
 from datetime import date, datetime
 from typing import List as ListTyping
+from typing import Union
 
 import yaml
 
 
 class Field:
-    def __init__(
-        self, description=None, required=None, name=None, choices=None, example=None
-    ):
+    def __init__(self, description=None, required=None, name=None, choices=None, example=None):
         self.name = name
         self.description = description
         self.required = required
@@ -72,9 +72,7 @@ class Dictionary(Field):
     def serialize(self):
         return {
             "type": "object",
-            "properties": {
-                key: serialize_schema(schema) for key, schema in self.fields.items()
-            },
+            "properties": {key: serialize_schema(schema) for key, schema in self.fields.items()},
             **super().serialize(),
         }
 
@@ -189,6 +187,7 @@ def parse_yaml(classes: ListTyping[ParseClass]):
                         and "type" in v["items"]
                         and v["items"]["type"] == "Object"
                     ):
+
                         if len(cls.cls.__dataclass_fields__[k].type.__args__) != 1:
                             raise Exception(
                                 f"only 1 element in the list is supported! got {cls.cls.__dataclass_fields__[k].type.__args__}"
@@ -198,6 +197,69 @@ def parse_yaml(classes: ListTyping[ParseClass]):
                             to_parse.append(parse)
                         v["items"]["$ref"] = f"#/definitions/{v['items']['ref']}"
                         del v["items"]["ref"]
+                    # print(v)
+                    # {'type': 'Union', 'items': [{'home_premium': {'type': 'Object', 'ref': 'HomePremium'}}, {'family_premium': {'type': 'Object', 'ref': 'FamilyPremium'}}, {'car_premium': {'type': 'Object', 'ref': 'CarPremium'}}]}
+                    # ---------------------------------
+                    # class A():
+                    #   """
+                    #   properties:
+                    #       extras:
+                    #           type: Union
+                    #               items:
+                    #               - home_premium:
+                    #                   type: Object
+                    #                   ref: HomePremium
+                    #               - family_premium:
+                    #                   type: Object
+                    #                   ref: FamilyPremium
+                    #               - car_premium:
+                    #                   type: Object
+                    #                   ref: CarPremium
+                    #   """
+                    #
+                    #   extras: Union[]
+                    # ---------------------------------
+                    if (
+                        "type" in v
+                        and v["type"] == "Union"
+                        and "items" in v
+                        # and "type" in v["items"]
+                        # and v["items"]["type"] == "Object"
+                    ):
+                        # v["items"]["$ref"] = [1]
+                        # v["items"]["$ref"] = "SHIT"
+                        # print(v)
+                        # print("golden point")
+                        # v["$ref"] = f"#/definitions/{v['ref']}"
+                        # for item in v["items"]:
+                        v["oneOf"] = []
+
+                        # oneOf:
+                        #   - $ref: '#/components/schemas/foo_schema1'
+                        #   - $ref: '#/components/schemas/foo_schema2'
+                        for item in v["items"]:
+                            # {'home_premium': {'type': 'Object', 'ref': 'HomePremium'}}
+                            for ref, data in item.items():
+                                # v["items"]["$ref"] = f"#/definitions/{v['items']['ref']}"
+                                v["oneOf"].append({"$ref": f"#/definitions/{data['ref']}"})
+                                # del v["items"]["ref"]
+                                # print(type(item))
+                                # print(item["ref"])
+                                for j, w in cls.cls.__dataclass_fields__.items():
+                                    # print(j)
+                                    if j == k:
+                                        for uni in w.type.__args__:
+                                            parse = ParseClass(uni, name=uni.__name__)
+                                            to_parse.append(parse)
+                                            # print(uni.__name__)
+                                            # print(uni)
+                                        # print(w.type)
+                                    # if hasattr(w.type, "__name__") and data["ref"] == w.type.__name__:
+                                    #     print(w)
+                            # parse = ParseClass(w.type, name=w.type.__name__)
+                            # to_parse.append(parse)
+                        del v["items"]
+                        del v["type"]
 
                     # ---------------------------------
                     # class A():
@@ -212,12 +274,23 @@ def parse_yaml(classes: ListTyping[ParseClass]):
                     # ---------------------------------
                     if "ref" in v and "type" in v and v["type"] == "Object":
                         for j, w in cls.cls.__dataclass_fields__.items():
-                            if (
-                                hasattr(w.type, "__name__")
-                                and v["ref"] == w.type.__name__
-                            ):
+                            if hasattr(w.type, "__name__") and v["ref"] == w.type.__name__:
                                 parse = ParseClass(w.type, name=w.type.__name__)
                                 to_parse.append(parse)
+
+                            elif hasattr(w.type, "__origin__") and w.type.__origin__ == Union:
+
+                                for i in w.type.__args__:
+
+                                    if hasattr(i, "__origin__") and i.__origin__ == list:
+                                        for l in i.__args__:
+                                            print("=====================")
+                                            print(l)
+                                            parse = ParseClass(l, name=l.__name__)
+                                            to_parse.append(parse)
+                                    elif i.__name__ == v["ref"]:
+                                        parse = ParseClass(i, name=i.__name__)
+                                        to_parse.append(parse)
                         v["$ref"] = f"#/definitions/{v['ref']}"
                         del v["ref"]
                 parse_yaml(to_parse)
@@ -243,13 +316,9 @@ class Object(Field):
             if hasattr(self.cls, "__doc__") and self.cls.__doc__:
                 cls = ParseClass(cls=cls, obj=self)
                 parse_yaml([cls])
-            elif "properties" in definition and isinstance(
-                definition["properties"], dict
-            ):
+            elif "properties" in definition and isinstance(definition["properties"], dict):
                 # remove empty dict
-                definition["properties"] = {
-                    k: v for k, v in definition["properties"].items() if v
-                }
+                definition["properties"] = {k: v for k, v in definition["properties"].items() if v}
                 definitions[self.cls] = (self, definition)
                 # here we yaml parse
                 # @dataclass(config=GlobalConfig)
@@ -324,24 +393,16 @@ class Object(Field):
         return {
             "type": "object",
             "required": [
-                attr
-                for attr, schema in self.cls.__dict__.items()
-                if hasattr(schema, "required") and schema.required
+                attr for attr, schema in self.cls.__dict__.items() if hasattr(schema, "required") and schema.required
             ],
             "properties": {
-                key: serialize_schema(schema)
-                for key, schema in self.cls.__dict__.items()
-                if not key.startswith("_")
+                key: serialize_schema(schema) for key, schema in self.cls.__dict__.items() if not key.startswith("_")
             },
             **super().serialize(),
         }
 
     def serialize(self):
-        return {
-            "type": "object",
-            "$ref": "#/definitions/{}".format(self.object_name),
-            **super().serialize(),
-        }
+        return {"type": "object", "$ref": "#/definitions/{}".format(self.object_name), **super().serialize()}
 
 
 def serialize_schema(schema):
@@ -494,10 +555,7 @@ def security(*args):
 
 def response(code, description=None, examples=None):
     def inner(func):
-        route_specs[func].responses[code] = {
-            "description": description,
-            "example": examples,
-        }
+        route_specs[func].responses[code] = {"description": description, "example": examples}
         return func
 
     return inner

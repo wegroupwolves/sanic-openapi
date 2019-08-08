@@ -5,15 +5,7 @@ from sanic.blueprints import Blueprint
 from sanic.response import json
 from sanic.views import CompositionView
 
-from .doc import (
-    route_specs,
-    RouteSpec,
-    serialize_schema,
-    definitions,
-    security_definitions,
-    Object,
-)
-
+from .doc import Object, RouteSpec, definitions, route_specs, security_definitions, serialize_schema
 
 blueprint = Blueprint("openapi", url_prefix="openapi")
 
@@ -22,16 +14,13 @@ _spec = {}
 
 # Removes all null values from a dictionary
 def remove_nulls(dictionary, deep=True):
-    return {
-        k: remove_nulls(v, deep) if deep and type(v) is dict else v
-        for k, v in dictionary.items()
-        if v is not None
-    }
+    return {k: remove_nulls(v, deep) if deep and type(v) is dict else v for k, v in dictionary.items() if v is not None}
 
 
 @blueprint.listener("before_server_start")
 def build_spec(app, loop):
     _spec["swagger"] = "2.0"
+    # _spec["openapi"] = "3.0.0"
     _spec["info"] = {
         "version": getattr(app.config, "API_VERSION", "1.0.0"),
         "title": getattr(app.config, "API_TITLE", "API"),
@@ -60,11 +49,7 @@ def build_spec(app, loop):
 
     paths = {}
     for uri, route in app.router.routes_all.items():
-        if (
-            uri.startswith("/swagger")
-            or uri.startswith("/openapi")
-            or "<file_uri" in uri
-        ):
+        if uri.startswith("/swagger") or uri.startswith("/openapi") or "<file_uri" in uri:
             # TODO: add static flag in sanic routes
             continue
 
@@ -98,15 +83,12 @@ def build_spec(app, loop):
             route_parameters = []
             for parameter in route.parameters:
                 route_parameters.append(
-                    {
-                        **serialize_schema(parameter.cast),
-                        "required": True,
-                        "in": "path",
-                        "name": parameter.name,
-                    }
+                    {**serialize_schema(parameter.cast), "required": True, "in": "path", "name": parameter.name}
                 )
 
             for consumer in route_spec.consumes:
+                print("----------------")
+                print(consumer.field)
                 spec = serialize_schema(consumer.field)
                 if "properties" in spec:
                     for name, prop_spec in spec["properties"].items():
@@ -121,9 +103,7 @@ def build_spec(app, loop):
                         **spec,
                         "required": consumer.required,
                         "in": consumer.location,
-                        "name": consumer.field.name
-                        if hasattr(consumer.field, "name")
-                        else "body",
+                        "name": consumer.field.name if hasattr(consumer.field, "name") else "body",
                     }
 
                 if "$ref" in route_param:
@@ -133,6 +113,27 @@ def build_spec(app, loop):
                 route_parameters.append(route_param)
 
             # route_spec.security = {}
+            responses = {}
+            # {400: {'description': 'succes', 'example': {'TODO': 'TODO'}}, 200: {'description': 'succes', 'example': <class 'wg_py_models.insurance.PolicyContract'>}}
+            # responses: {
+            # 200: {
+            # description: "successful operation",
+            # schema: {
+            # $ref: "#/definitions/User"
+            # }
+            # },
+            for status_code, response in route_spec.responses.items():
+                if "example" in response and hasattr(response["example"], "__pydantic_model__"):
+                    spec = serialize_schema(response["example"])
+                    print(spec)
+                    print(dir(response["example"]))
+                    responses[status_code] = {
+                        # "description": response.get("description"),
+                        "schema": {"$ref": spec["$ref"]}
+                    }
+                    print(responses)
+                else:
+                    responses[status_code] = {}
 
             # if "200" not in route_spec.responses:
             #     route_spec.responses["200"] = {
@@ -152,7 +153,8 @@ def build_spec(app, loop):
                     "produces": produces_content_types,
                     "tags": route_spec.tags or None,
                     "parameters": route_parameters,
-                    "responses": route_spec.responses,
+                    # "responses": route_spec.responses,
+                    "responses": responses,
                     "security": route_spec.security,
                 }
             )
@@ -161,9 +163,7 @@ def build_spec(app, loop):
 
         uri_parsed = uri
         for parameter in route.parameters:
-            uri_parsed = re.sub(
-                "<" + parameter.name + ".*?>", "{" + parameter.name + "}", uri_parsed
-            )
+            uri_parsed = re.sub("<" + parameter.name + ".*?>", "{" + parameter.name + "}", uri_parsed)
 
         paths[uri_parsed] = methods
 
