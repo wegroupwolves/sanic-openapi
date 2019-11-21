@@ -121,7 +121,7 @@ def build_spec(app, loop):
             # }
             # },
             for status_code, response in route_spec.responses.items():
-                if "example" in response and hasattr(response["example"], "__pydantic_model__"):
+                if "example" in response and response['example']:
                     spec = serialize_schema(response["example"])
                     responses[status_code] = {
                         # "description": response.get("description"),
