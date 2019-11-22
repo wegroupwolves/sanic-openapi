@@ -123,10 +123,12 @@ def build_spec(app, loop):
             for status_code, response in route_spec.responses.items():
                 if "example" in response and response['example']:
                     spec = serialize_schema(response["example"])
-                    responses[status_code] = {
-                        # "description": response.get("description"),
-                        "schema": {"$ref": spec["$ref"]}
-                    }
+                    print(spec)
+                    if "$ref" in spec:
+                        responses[status_code] = {
+                            # "description": response.get("description"),
+                            "schema": {"$ref": spec["$ref"]}
+                        }
                 else:
                     responses[status_code] = {}
 
