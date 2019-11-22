@@ -4,9 +4,8 @@ from datetime import date, datetime
 from typing import List as ListTyping
 from typing import Union
 
-from pydantic import BaseModel
-
 import yaml
+from pydantic import BaseModel
 
 
 class Field:
@@ -113,24 +112,37 @@ def parse_yaml(classes: ListTyping[ParseClass]):
     for cls in classes:
         if cls.cls not in definitions:
             if hasattr(cls.cls, "schema"):
-                try:
-                    try:
-                        for k,v in cls.cls.schema()["definitions"].items():
-                            definitions[k] = (k, v)
-                    except:
-                        print("No definitions in:", cls.cls.__name__)
+                # try:
+                # print("))))))))))))))))))))")
+                # print(cls.cls.schema())
+                # try:
+                if "definitions" in cls.cls.schema():
+                    for k, v in cls.cls.schema()["definitions"].items():
+                        definitions[k] = (k, v)
+                    # except:
+                    #     print("No definitions in:", cls.cls.__name__)
 
                     definitions[cls.cls] = (
                         cls.cls.__name__,
                         {
-                        "type": cls.cls.schema()["type"],
-                        "required": cls.cls.schema()["required"],
-                        "properties": cls.cls.schema()["properties"],
-                        "description": cls.cls.schema()["description"]
-                        }
+                            "type": cls.cls.schema()["type"],
+                            "required": cls.cls.schema()["required"],
+                            "properties": cls.cls.schema()["properties"],
+                            "description": cls.cls.schema()["description"] if "description" in cls.cls.schema() else "",
+                        },
                     )
-                except Exception as e:
-                    print("\n",e, "\nFor: ",cls.cls.__name__)
+                else:
+                    definitions[cls.cls] = (
+                        cls.cls.__name__,
+                        {
+                            "type": cls.cls.schema()["type"],
+                            "required": cls.cls.schema()["required"],
+                            "properties": cls.cls.schema()["properties"],
+                            "description": cls.cls.schema()["description"] if "description" in cls.cls.schema() else "",
+                        },
+                    )
+                # except Exception as e:
+                #     print("\n", e, "\nFor: ", cls.cls.__name__)
             else:
                 definition = {"type": "object", "required": [], "properties": {}}
 
@@ -326,6 +338,7 @@ def parse_yaml(classes: ListTyping[ParseClass]):
 
 
 class Object(Field):
+
     def __init__(self, cls, *args, object_name=None, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -336,6 +349,9 @@ class Object(Field):
             definition = self.definition
 
             if hasattr(self.cls, "__doc__") and self.cls.__doc__:
+                cls = ParseClass(cls=cls, obj=self)
+                parse_yaml([cls])
+            elif hasattr(self.cls, "schema") and self.cls.schema():
                 cls = ParseClass(cls=cls, obj=self)
                 parse_yaml([cls])
             elif "properties" in definition and isinstance(definition["properties"], dict):
