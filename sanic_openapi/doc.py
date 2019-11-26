@@ -126,7 +126,7 @@ def parse_yaml(classes: ListTyping[ParseClass]):
                         cls.cls.__name__,
                         {
                             "type": cls.cls.schema()["type"],
-                            "required": cls.cls.schema()["required"],
+                            "required": cls.cls.schema()["required"] if "required" in cls.cls.schema() else [],
                             "properties": cls.cls.schema()["properties"],
                             "description": cls.cls.schema()["description"] if "description" in cls.cls.schema() else "",
                         },
