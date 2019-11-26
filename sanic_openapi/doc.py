@@ -318,8 +318,8 @@ def parse_yaml(classes: ListTyping[ParseClass]):
 
                                         if hasattr(i, "__origin__") and i.__origin__ == list:
                                             for l in i.__args__:
-                                                print("=====================")
-                                                print(l)
+                                                # print("=====================")
+                                                # print(l)
                                                 parse = ParseClass(l, name=l.__name__)
                                                 to_parse.append(parse)
                                         elif i.__name__ == v["ref"]:
@@ -338,7 +338,6 @@ def parse_yaml(classes: ListTyping[ParseClass]):
 
 
 class Object(Field):
-
     def __init__(self, cls, *args, object_name=None, **kwargs):
         super().__init__(*args, **kwargs)
 
