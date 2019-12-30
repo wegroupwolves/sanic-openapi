@@ -27,7 +27,7 @@ setup(
     package_data={'sanic_openapi': ['ui/*']},
     platforms='any',
     install_requires=[
-        'sanic>=0.6.0',
+        'sanic~=19.9.0',
         'pyyaml'
     ],
     classifiers=[
