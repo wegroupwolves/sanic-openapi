@@ -110,12 +110,9 @@ class ParseClass:
 def parse_yaml(classes: ListTyping[ParseClass]):
     # classes = (class, obj, name)
     for cls in classes:
+        print(cls)
         if cls.cls not in definitions:
             if hasattr(cls.cls, "schema"):
-                # try:
-                # print("))))))))))))))))))))")
-                # print(cls.cls.schema())
-                # try:
                 if "definitions" in cls.cls.schema():
                     for k, v in cls.cls.schema()["definitions"].items():
                         definitions[k] = (k, v)
@@ -350,7 +347,7 @@ class Object(Field):
             if hasattr(self.cls, "__doc__") and self.cls.__doc__:
                 cls = ParseClass(cls=cls, obj=self)
                 parse_yaml([cls])
-            elif hasattr(self.cls, "schema") and self.cls.schema():
+            if hasattr(self.cls, "schema") and self.cls.schema():
                 cls = ParseClass(cls=cls, obj=self)
                 parse_yaml([cls])
             elif "properties" in definition and isinstance(definition["properties"], dict):

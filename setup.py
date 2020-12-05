@@ -4,14 +4,14 @@ Sanic
 import codecs
 import os
 import re
+
 from setuptools import setup
 
-
-with codecs.open(os.path.join(os.path.abspath(os.path.dirname(
-        __file__)), 'sanic_openapi', '__init__.py'), 'r', 'latin1') as fp:
+with codecs.open(
+    os.path.join(os.path.abspath(os.path.dirname(__file__)), 'sanic_openapi', '__init__.py'), 'r', 'latin1'
+) as fp:
     try:
-        version = re.findall(r"^__version__ = '([^']+)'\r?$",
-                             fp.read(), re.M)[0]
+        version = re.findall(r"^__version__ = '([^']+)'\r?$", fp.read(), re.M)[0]
     except IndexError:
         raise RuntimeError('Unable to determine version.')
 
@@ -26,10 +26,7 @@ setup(
     packages=['sanic_openapi'],
     package_data={'sanic_openapi': ['ui/*']},
     platforms='any',
-    install_requires=[
-        'sanic~=19.9.0',
-        'pyyaml'
-    ],
+    install_requires=['sanic>=19.9.0', 'pyyaml'],
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Environment :: Web Environment',
